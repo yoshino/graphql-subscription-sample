@@ -10,6 +10,7 @@ module Mutations
 
     def resolve(**args)
       post = Post.create!(title: args[:title], author: args[:author])
+      RailsServerSchema.subscriptions.trigger('postCreated', {}, post)
 
       {
         post: post,
