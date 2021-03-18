@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { render } from "react-dom";
 
 import {
@@ -113,11 +113,12 @@ const POST_CREATED = gql`
 `;
 
 const LatestPost = () => {
-  const { data, loading } = useSubscription(POST_CREATED);
+  const { data, error, loading } = useSubscription(POST_CREATED);
 
-  console.log(data);
+  if (loading) return <p>loading</p>;
+  if (error) return <p>{error.toString()}</p>;
 
-  return <h4>New title: {!loading && data.title}</h4>;
+  return <h4>New title: {data.post.data.title}</h4>;
 };
 
 function App() {
