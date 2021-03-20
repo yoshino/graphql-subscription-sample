@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from "react";
 import { render } from "react-dom";
 
 import {
@@ -9,21 +8,18 @@ import {
   split,
   useSubscription,
   gql,
-  ApolloLink,
   useMutation,
 } from "@apollo/client";
 import { getMainDefinition } from "@apollo/client/utilities";
-import { WebSocketLink } from "@apollo/client/link/ws";
+
+import ActionCable from "actioncable";
+import ActionCableLink from "graphql-ruby-client/subscriptions/ActionCableLink";
+
+const wsClient = ActionCable.createConsumer("ws://localhost:4000/graphql");
+const wsLink = new ActionCableLink({ cable: wsClient });
 
 const httpLink = new HttpLink({
-  uri: "http://localhost:4000",
-});
-
-const wsLink = new WebSocketLink({
-  uri: "ws://localhost:4000/graphql",
-  options: {
-    reconnect: true,
-  },
+  uri: "http://localhost:4000/graphql",
 });
 
 const splitLink = split(
@@ -40,7 +36,7 @@ const splitLink = split(
 
 export const client = new ApolloClient({
   cache: new InMemoryCache(),
-  link: ApolloLink.from([splitLink]),
+  link: splitLink,
 });
 
 //==============================
@@ -48,9 +44,11 @@ export const client = new ApolloClient({
 //==============================
 const CREATE_POST = gql`
   mutation CreatePost($title: String!, $author: String!) {
-    createPost(data: { title: $title, author: $author }) {
-      title
-      author
+    createPost(input: { title: $title, author: $author }) {
+      post {
+        title
+        author
+      }
     }
   }
 `;
@@ -58,7 +56,7 @@ const CREATE_POST = gql`
 const CreatePost = () => {
   let title;
   let author;
-  const [createPost, { data }] = useMutation(CREATE_POST);
+  const [createPost] = useMutation(CREATE_POST);
 
   return (
     <div>
@@ -101,13 +99,10 @@ const CreatePost = () => {
 //==============================
 const POST_CREATED = gql`
   subscription {
-    post {
-      mutation
-
-      data {
-        title
-        author
-      }
+    postCreated {
+      id
+      title
+      author
     }
   }
 `;
@@ -115,10 +110,10 @@ const POST_CREATED = gql`
 const LatestPost = () => {
   const { data, error, loading } = useSubscription(POST_CREATED);
 
-  if (loading) return <p>loading</p>;
+  if (loading || !data.postCreated) return <p>loading...</p>;
   if (error) return <p>{error.toString()}</p>;
 
-  return <h4>New title: {data.post.data.title}</h4>;
+  return <h4>New title: {data.postCreated.title}</h4>;
 };
 
 function App() {
